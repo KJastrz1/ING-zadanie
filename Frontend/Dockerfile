@@ -1,24 +1,24 @@
-﻿FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
-USER $APP_UID
-WORKDIR /app
-EXPOSE 8080
-EXPOSE 8081
-
+﻿# Etap 1: Budowanie aplikacji
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
-ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
+
+# Kopiowanie plików projektów i przywracanie zależności
 COPY ["Frontend/Frontend.csproj", "Frontend/"]
 COPY ["Shared/Shared.csproj", "Shared/"]
 RUN dotnet restore "Frontend/Frontend.csproj"
+
+# Kopiowanie reszty plików i budowanie aplikacji
 COPY . .
 WORKDIR "/src/Frontend"
-RUN dotnet build "Frontend.csproj" -c $BUILD_CONFIGURATION -o /app/build
+RUN dotnet publish "Frontend.csproj" -c Release -o /app/publish
 
-FROM build AS publish
-ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "Frontend.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+# Etap 2: Tworzenie obrazu serwera WWW
+FROM nginx:alpine AS final
+WORKDIR /usr/share/nginx/html
+COPY --from=build /app/publish/wwwroot .
 
-FROM base AS final
-WORKDIR /app
-COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "Frontend.dll"]
+# Expose port 80
+EXPOSE 80
+
+# Start Nginx server
+CMD ["nginx", "-g", "daemon off;"]

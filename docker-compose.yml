@@ -1,1 +1,18 @@
-﻿
+﻿version: '3.8'
+
+services:
+  ING-zadanie-backend:
+    build:
+      context: .
+      dockerfile: Backend/Dockerfile
+    ports:
+      - "5092:80"
+  
+  ING-zadanie-frontend:
+    depends_on:
+      - ING-zadanie-backend
+    build:
+      context: .
+      dockerfile: Frontend/Dockerfile
+    ports:
+      - "8080:80"

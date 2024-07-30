@@ -1,0 +1,84 @@
+﻿@page "/"
+@using Shared.Contract.Responses
+@inject HttpClient Http
+
+<PageTitle>Home</PageTitle>
+
+<h1>Get Insights on EUR to PLN Exchange Rates for the Past Days</h1>
+
+<div>
+    <input type="number" @bind="_numOfDays" min="1" max="255" placeholder="Enter number of days"/>
+    <button @onclick="FetchData">Get Statistics</button>
+</div>
+
+
+@if (!string.IsNullOrEmpty(_errorMessage))
+{
+    <p class="text-danger">@_errorMessage</p>
+}
+else
+{
+    <h3>Statistics for last @_numOfDays days</h3>
+    <p>
+        <strong>Average:</strong> @_average <br/>
+        <strong>Min:</strong> @_min <br/>
+        <strong>Max:</strong> @_max
+    </p>
+}
+
+
+@code {
+    private decimal _average;
+    private decimal _min;
+    private decimal _max;
+    private string? _errorMessage;
+    private int _numOfDays = 20;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await FetchData();
+    }
+
+    private async Task FetchData()
+    {
+        if(_numOfDays < 1 || _numOfDays > 255)
+        {
+            _errorMessage = "Number of days must be between 1 and 255.";
+            return;
+        }
+        try
+        {
+            _errorMessage = null;
+            var response = await Http.GetAsync($"Currency/eur/statistics?numOfDays={_numOfDays}");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var data = await response.Content.ReadFromJsonAsync<CurrencyStatisticsResponse>();
+                if (data != null)
+                {
+                    _average = data.Average;
+                    _min = data.Min;
+                    _max = data.Max;
+                }
+                else
+                {
+                    _errorMessage = "No data available.";
+                }
+            }
+            else if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
+            {
+                var errorBody = await response.Content.ReadFromJsonAsync<ErrorResponse>();
+               
+                _errorMessage = !string.IsNullOrEmpty(errorBody?.Message) ? errorBody.Message : "Request was invalid. Please check the input.";
+            }
+            else
+            {
+                _errorMessage = "Something went wrong, please try again later.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "Something went wrong, please try again later.";
+        }
+    }
+}
